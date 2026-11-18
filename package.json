@@ -1,0 +1,16 @@
+{
+  "name": "rubric-buddy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Suggests rubric-based marks and feedback for a student answer, with evidence. The teacher decides the final mark.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.10.0"
+  }
+}
