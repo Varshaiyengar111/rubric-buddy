@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rubric Buddy</title>
+<style>
+  :root { --bg:#faf7f2; --card:#fff; --ink:#26211b; --muted:#6b6257; --line:#e8e1d6; --accent:#b45309; --ok:#1f7a4d; --mid:#a16207; --no:#9b1c1c; --warn-bg:#fff4e5; --warn:#8a4b00; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#17140f; --card:#211d17; --ink:#efe9e1; --muted:#b3a99c; --line:#3a332a; --accent:#f59e0b; --ok:#7fdcaa; --mid:#facc15; --no:#ffb3b3; --warn-bg:#3a2a12; --warn:#ffcf8a; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  p.lede { margin: 0 0 16px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+  label { font-weight: 600; display: block; margin-top: 12px; }
+  textarea, input { width: 100%; font: inherit; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  textarea { min-height: 110px; }
+  button { font: inherit; padding: 10px 16px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button:disabled { opacity: .6; cursor: wait; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .note { font-size: .9rem; color: var(--muted); }
+  .banner { padding: 10px 12px; border-radius: 8px; background: var(--warn-bg); color: var(--warn); font-size: .92rem; margin-top: 12px; }
+  .crit { border-top: 1px solid var(--line); padding: 12px 0; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .crit .status { font-weight: 600; }
+  .met { color: var(--ok); } .partly { color: var(--mid); } .not_met { color: var(--no); }
+  .crit blockquote { margin: 4px 0; padding-left: 10px; border-left: 3px solid var(--line); color: var(--muted); grid-column: 1 / -1; }
+  .crit .tnote { grid-column: 1 / -1; font-size: .9rem; color: var(--muted); }
+  .marks input { width: 4.5em; text-align: center; }
+  .total { font-size: 1.3rem; font-weight: 700; }
+  footer { margin-top: 24px; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Rubric Buddy</h1>
+  <p class="lede">Paste your rubric and a student's answer. Get criterion-by-criterion suggestions with evidence from the answer. You set the final marks.</p>
+
+  <div class="card">
+    <label for="question">Question</label>
+    <input id="question" placeholder="e.g. Explain how plants make their own food. (5 marks)">
+    <label for="rubric">Your rubric <span class="note">(one criterion per line, with marks)</span></label>
+    <textarea id="rubric"></textarea>
+    <label for="answer">Student's answer <span class="note">(use made-up text in this demo; no student names)</span></label>
+    <textarea id="answer"></textarea>
+    <div class="row">
+      <button id="go">Suggest marks</button>
+      <button class="secondary" id="sample">Use example</button>
+    </div>
+    <div id="mode" class="note" style="margin-top:8px"></div>
+  </div>
+
+  <div id="error" class="banner" hidden></div>
+  <div id="out" class="card" hidden></div>
+
+  <footer>Portfolio demo. Suggestions only. The teacher always decides the final mark.</footer>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+
+// On GitHub Pages there is no server, so the page uses the built-in example in demo.json.
+// Add ?static to the address to try this mode on your own computer.
+const STATIC = location.hostname.endsWith("github.io") || new URLSearchParams(location.search).has("static");
+const ONLINE_NOTE = "Online demo: shows a pre-made example and never uses AI. To try the real AI, run it on your computer (see the README).";
+let demoFile;
+async function api(path, body) {
+  if (STATIC) {
+    demoFile ??= await fetch("demo.json").then((r) => r.json());
+    if (path === "status") return demoFile.status;
+    const run = structuredClone(demoFile.run);
+    if (demoFile.urgentWords) {
+      // The urgent-help check still runs on what the visitor typed.
+      const text = Object.values(body).join(" ").toLowerCase();
+      run.urgentWords = demoFile.urgentWords.filter((w) => text.includes(w));
+      run.urgent = run.urgentWords.length > 0;
+    }
+    return run;
+  }
+  const r = await fetch("/api/" + path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error);
+  return data;
+}
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const LABEL = { met: "Met", partly: "Partly met", not_met: "Not met" };
+let sample = null;
+
+api("status").then((s) => {
+  sample = s.sample;
+  $("mode").textContent = STATIC ? ONLINE_NOTE : s.live ? "Live AI mode." : "Demo mode: shows a pre-made example. Add an API key to use the real AI.";
+});
+
+$("sample").onclick = () => { for (const k of ["question", "rubric", "answer"]) $(k).value = sample[k]; };
+
+$("go").onclick = async () => {
+  $("go").disabled = true; $("go").textContent = "Reading the answer…"; $("error").hidden = true;
+  try {
+    const body = { question: $("question").value, rubric: $("rubric").value, answer: $("answer").value };
+    const data = await api("run", body);
+    render(data);
+  } catch (e) { $("error").textContent = e.message; $("error").hidden = false; }
+  finally { $("go").disabled = false; $("go").textContent = "Suggest marks"; }
+};
+
+function render({ demo, result: g }) {
+  $("out").hidden = false;
+  $("out").innerHTML = `
+    ${demo ? `<div class="banner" style="margin-top:0">Demo mode: this is a pre-made example for the example answer.</div>` : ""}
+    ${g.total_matches === false ? `<div class="banner">The AI's total didn't add up, so it was recalculated from the criteria.</div>` : ""}
+    ${g.criteria.map((c, i) => `
+      <div class="crit">
+        <div><span class="status ${c.status}">${LABEL[c.status]}</span> · ${esc(c.criterion)}</div>
+        <div class="marks"><input type="number" step="0.5" min="0" max="${c.max_marks}" value="${c.suggested_marks}" data-i="${i}" aria-label="Marks for criterion ${i + 1}"> / ${c.max_marks}</div>
+        ${c.evidence ? `<blockquote>“${esc(c.evidence)}” ${c.evidence_found === false ? `<b class="not_met">⚠ not found in answer, check</b>` : ""}</blockquote>` : `<blockquote>No evidence in the answer.</blockquote>`}
+        ${c.teacher_note ? `<div class="tnote">Note for you: ${esc(c.teacher_note)}</div>` : ""}
+      </div>`).join("")}
+    <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px">
+      <span>Final mark (your decision)</span><span class="total"><span id="total"></span> / ${g.max_total}</span>
+    </div>
+    <label for="fb">Feedback for the student <span class="note">(edit before sharing)</span></label>
+    <textarea id="fb">${esc(g.feedback_to_student)}</textarea>
+    <div class="row"><button class="secondary" id="copy">Copy feedback</button></div>`;
+  const sum = () => { $("total").textContent = [...document.querySelectorAll(".marks input")].reduce((t, el) => t + (Number(el.value) || 0), 0); };
+  document.querySelectorAll(".marks input").forEach((el) => el.oninput = sum);
+  sum();
+  $("copy").onclick = () => navigator.clipboard.writeText($("fb").value).then(() => { $("copy").textContent = "Copied"; });
+}
+</script>
+</body>
+</html>

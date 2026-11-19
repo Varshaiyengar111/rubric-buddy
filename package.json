@@ -5,7 +5,8 @@
   "description": "Suggests rubric-based marks and feedback for a student answer, with evidence. The teacher decides the final mark.",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:pages": "node build-pages.js"
   },
   "engines": {
     "node": ">=20.12"

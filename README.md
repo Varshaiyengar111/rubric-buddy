@@ -2,6 +2,9 @@
 
 **Mark written answers faster and more consistently, with the teacher always in charge of the final mark.**
 
+### ▶ [Try the online demo](https://varshaiyengar111.github.io/rubric-buddy/)
+No install needed. It shows the built-in example and never calls the AI.
+
 A small AI product prototype in edtech. A teacher pastes their own rubric and a student's answer. The AI checks each rubric point, quotes the words in the answer it relied on, suggests marks, and drafts short feedback. The teacher adjusts the marks and edits the feedback.
 
 > Portfolio demo. The example question, rubric and answer are made up.
@@ -68,6 +71,8 @@ Open http://localhost:3003, click **Use example**, then **Suggest marks**. Chang
 
 - **Demo mode (free):** with no key, it shows a pre-made example.
 - **Live AI mode:** copy `.env.example` to `.env`, paste an [Anthropic API key](https://console.anthropic.com) after `ANTHROPIC_API_KEY=`, and restart. The key stays on the server and is never sent to the browser. `.env` is in `.gitignore`, so it is never uploaded.
+
+**Online demo:** the version on GitHub Pages is built from the `public` page with `npm run build:pages`, which saves the built-in example into `docs/`. It has no server and no key, so it never calls the AI.
 
 ## How it works
 
